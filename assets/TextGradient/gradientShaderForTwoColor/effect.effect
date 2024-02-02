@@ -19,9 +19,6 @@ CCEffect %{
         startColor: { value: [1.0, 1.0, 1.0, 1.0], editor: {type: color} }
         endColor: { value: [1.0, 1.0, 1.0, 1.0], editor: {type: color} }
         colorRadio: { value: 0.5}
-        width: { value: 0.1}
-        strength: { value: 1.2}
-        speedScale: { value: 1.0}
 }%
 
 CCProgram sprite-vs %{
@@ -69,7 +66,6 @@ CCProgram sprite-fs %{
   precision highp float;
   #include <builtin/internal/embedded-alpha>
   #include <builtin/internal/alpha-test>
-  #include <builtin/uniforms/cc-global>
 
   in vec4 color;
 
@@ -78,44 +74,21 @@ CCProgram sprite-fs %{
     vec4 endColor;
   };   
 
-  #if USE_TEXTURE
-    in vec2 uv0;
-    #pragma builtin(local)
-    layout(set = 2, binding = 11) uniform sampler2D cc_spriteTexture;
-  #endif
+  in vec2 uv0;
+  #pragma builtin(local)
+  layout(set = 2, binding = 11) uniform sampler2D cc_spriteTexture;
+
 
   uniform ARGS{
     float colorRadio;
-    float width;
-    float strength;
-    float speedScale;
   };
 
   vec4 frag () {
     vec4 o = vec4(1, 1, 1, 1);
+    o *= CCSampleWithAlphaSeparated(cc_spriteTexture, uv0); 
 
-    #if USE_TEXTURE            
-      o *= CCSampleWithAlphaSeparated(cc_spriteTexture, uv0); 
-      #if IS_GRAY
-        float gray  = 0.2126 * o.r + 0.7152 * o.g + 0.0722 * o.b;
-        o.r = o.g = o.b = gray;
-      #endif
-
-      // Use startColor and endColor directly
-      o.rgb *= mix(startColor.rgb, endColor.rgb, smoothstep(0.0, colorRadio * 2.0, uv0.x));
-
-    #endif
-
+    o.rgb *= mix(startColor.rgb, endColor.rgb, smoothstep(0.0, colorRadio * 2.0, uv0.x));
     o *= color;
-
-    float time = cc_time.x * speedScale;
-    float k = 0.2;
-    float time_step = -width;
-    time_step += mod(time, 1.0 + 2.0 * width + 3.0);
-
-    if (uv0.x >= -uv0.y * k + time_step && uv0.x <= -uv0.y * k + width + time_step  ) {
-      o *= strength;
-    }
 
     ALPHA_TEST(o);
     return o;
